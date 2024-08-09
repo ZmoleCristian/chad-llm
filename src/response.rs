@@ -1,16 +1,17 @@
 use bat::PrettyPrinter;
-use std::io::Write;
 use std::io::Error;
+use std::io::Write;
 use std::pin::Pin;
 use tokio_stream::StreamExt;
 
 pub async fn process_response(
     stream: Pin<Box<dyn tokio_stream::Stream<Item = Result<String, Error>>>>,
     code_blocks: &mut Vec<String>,
-) -> Result<(), Error> {
+) -> Result<String, Error> { // Change return type to Result<String, Error>
     let mut accumulate = false;
     let mut accumulator: Vec<String> = Vec::new();
     let mut end_delimiter_buffer = String::new();
+    let mut full_response = String::new(); // Accumulate full response
 
     tokio::pin!(stream);
 
@@ -18,6 +19,8 @@ pub async fn process_response(
         match chunk {
             Ok(content) => {
                 let content_trimmed = content.trim();
+                full_response.push_str(&content); // Accumulate full response
+
                 if content_trimmed == "```" {
                     accumulate = !accumulate;
                     if !accumulate && !accumulator.is_empty() {
@@ -61,8 +64,10 @@ pub async fn process_response(
                     std::io::stdout().flush().unwrap(); // Make sure to flush the output
                 }
             }
-            Err(err) => eprintln!("Error: {}", err),
+            Err(err) => {
+                eprintln!("Error: {}", err);
+            }
         }
     }
-    Ok(())
+    Ok(full_response) // Return the full accumulated response
 }
