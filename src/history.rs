@@ -15,10 +15,7 @@ impl History {
 
     pub fn save_entry(&self, entry: &str) -> io::Result<()> {
         let path = Path::new(&self.file_path);
-        let mut file = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(path)?;
+        let mut file = OpenOptions::new().create(true).append(true).open(path)?;
 
         writeln!(file, "User: {}", entry)?;
         Ok(())
@@ -26,10 +23,7 @@ impl History {
 
     pub fn save_response(&self, response: &str) -> io::Result<()> {
         let path = Path::new(&self.file_path);
-        let mut file = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(path)?;
+        let mut file = OpenOptions::new().create(true).append(true).open(path)?;
 
         writeln!(file, "GPT: {}", response)?;
         Ok(())

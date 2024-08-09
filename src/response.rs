@@ -7,7 +7,8 @@ use tokio_stream::StreamExt;
 pub async fn process_response(
     stream: Pin<Box<dyn tokio_stream::Stream<Item = Result<String, Error>>>>,
     code_blocks: &mut Vec<String>,
-) -> Result<String, Error> { // Change return type to Result<String, Error>
+) -> Result<String, Error> {
+    // Change return type to Result<String, Error>
     let mut accumulate = false;
     let mut accumulator: Vec<String> = Vec::new();
     let mut end_delimiter_buffer = String::new();

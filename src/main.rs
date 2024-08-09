@@ -15,7 +15,6 @@ use std::sync::Arc;
 use tokio::runtime::Runtime;
 use tokio::sync::Mutex;
 
-
 fn main() {
     let context = Arc::new(Mutex::new(Vec::new()));
     let mut history = BasicHistory::new().max_entries(99).no_duplicates(false);
