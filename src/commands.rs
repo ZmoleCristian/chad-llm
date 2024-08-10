@@ -1,6 +1,6 @@
-use bat::PrettyPrinter;
 use clipboard::{ClipboardContext, ClipboardProvider};
-use dialoguer::{theme::ColorfulTheme, Input, Select};
+use dialoguer::{theme::ColorfulTheme, Select};
+use std::fs::remove_file; // Import for file deletion
 use std::io::Write;
 use std::process;
 
@@ -8,13 +8,13 @@ pub fn is_command(input: &str) -> bool {
     input.starts_with('/') && !input.strip_prefix('/').unwrap().contains(' ')
 }
 
-pub fn handle_command(cmd: &str, code_blocks: &[String]) {
+pub fn handle_command(cmd: &str, code_blocks: &[String], history_file: &str) {
     match cmd {
         "/exit" => process::exit(0),
         "/clear" => println!("\x1B[2J\x1B[1;1H"),
         "/paste" => {
             let mut clipboard: ClipboardContext = ClipboardProvider::new().unwrap();
-            let content = clipboard.get_contents().unwrap();
+            let _content = clipboard.get_contents().unwrap();
             //println!("\n{}", content);
             std::io::stdout().flush().unwrap();
         }
@@ -48,6 +48,14 @@ pub fn handle_command(cmd: &str, code_blocks: &[String]) {
             let all_code = code_blocks.join("\n\n");
             clipboard.set_contents(all_code.clone()).unwrap();
             println!("All code blocks copied to clipboard");
+        }
+        "/clear_h" => {
+            // Clear history
+            if let Err(e) = remove_file(history_file) {
+                eprintln!("Failed to clear history: {}", e);
+            } else {
+                println!("History cleared.");
+            }
         }
         _ => println!("Unknown command: {}", cmd),
     }
