@@ -34,12 +34,13 @@ pub async fn send_request(
     let api_key = env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY not set");
     let url = "https://api.openai.com/v1/chat/completions";
 
-    let mut messages = vec![json!({"role": "system", "content": "You help me"})];
-    {
+    // Lock the context to access the stored messages and prepare the new message
+    let messages = {
         let ctx = context.lock().await;
-        messages.append(&mut ctx.clone());
-    }
-    messages.push(json!({"role": "user", "content": input}));
+        let mut messages = ctx.clone();
+        messages.push(json!({"role": "user", "content": input}));
+        messages
+    };
 
     let request_body = json!({
         "model": "gpt-3.5-turbo",
@@ -62,22 +63,25 @@ pub async fn send_request(
     let context_clone = Arc::clone(&context);
 
     tokio::spawn(async move {
+        let mut assistant_reply = String::new();
+
         while let Some(item) = stream.next().await {
             match item {
                 Ok(chunk) => {
-                    let chunk_str = String::from_utf8(chunk.to_vec()).unwrap_or_default();
+                    let chunk_str = String::from_utf8_lossy(&chunk);
                     let lines: Vec<&str> = chunk_str.split("\n").collect();
                     for line in lines {
                         if line.starts_with("data: ") {
                             let json_str = &line[6..];
-                            if let Ok(chunk) = serde_json::from_str::<Chunk>(json_str) {
-                                for choice in chunk.choices {
-                                    if let Some(content) = choice.delta.content {
-                                        if tx.send(Ok(content.clone())).await.is_err() {
-                                            return;
+                            if json_str != "[DONE]" {
+                                if let Ok(chunk) = serde_json::from_str::<Chunk>(json_str) {
+                                    for choice in chunk.choices {
+                                        if let Some(content) = choice.delta.content {
+                                            assistant_reply.push_str(&content);
+                                            if tx.send(Ok(content.clone())).await.is_err() {
+                                                return;
+                                            }
                                         }
-                                        let mut ctx = context_clone.lock().await;
-                                        ctx.push(json!({"role": "assistant", "content": content}));
                                     }
                                 }
                             }
@@ -94,6 +98,12 @@ pub async fn send_request(
                     break;
                 }
             }
+        }
+
+        // Update the shared context with the assistant's full reply
+        if !assistant_reply.is_empty() {
+            let mut ctx = context_clone.lock().await;
+            ctx.push(json!({"role": "assistant", "content": assistant_reply}));
         }
     });
 
