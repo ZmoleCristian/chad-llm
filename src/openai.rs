@@ -1,15 +1,27 @@
+// src/openai.rs
 use futures_util::Stream;
 use futures_util::StreamExt;
 use reqwest::Client;
-use serde::Deserialize;
-use serde_json::json;
+use serde::{Deserialize, Serialize};
 use std::env;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio::sync::Mutex;
 use tokio_stream::wrappers::ReceiverStream;
 
-type SharedContext = Arc<Mutex<Vec<serde_json::Value>>>;
+// Import the Message struct
+use crate::models::Message;
+
+type SharedContext = Arc<Mutex<Vec<Message>>>;
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ChatRequest {
+    pub model: String,
+    pub messages: Vec<Message>,
+    pub max_tokens: i64,
+    pub temperature: f64,
+    pub stream: bool,
+}
 
 #[derive(Deserialize)]
 struct Chunk {
@@ -36,19 +48,21 @@ pub async fn send_request(
 
     // Lock the context to access the stored messages and prepare the new message
     let messages = {
-        let ctx = context.lock().await;
-        let mut messages = ctx.clone();
-        messages.push(json!({"role": "user", "content": input}));
-        messages
+        let mut ctx = context.lock().await;
+        ctx.push(Message {
+            role: "user".to_string(),
+            content: input.to_string(),
+        });
+        ctx.clone()
     };
 
-    let request_body = json!({
-        "model": "gpt-3.5-turbo",
-        "max_tokens": 2048,
-        "temperature": 0.5,
-        "stream": true,
-        "messages": messages
-    });
+    let request_body = ChatRequest {
+        model: "gpt-3.5-turbo".to_string(),
+        messages: messages.clone(),
+        max_tokens: 2048,
+        temperature: 0.5,
+        stream: true,
+    };
 
     let response = client
         .post(url)
@@ -103,7 +117,10 @@ pub async fn send_request(
         // Update the shared context with the assistant's full reply
         if !assistant_reply.is_empty() {
             let mut ctx = context_clone.lock().await;
-            ctx.push(json!({"role": "assistant", "content": assistant_reply}));
+            ctx.push(Message {
+                role: "assistant".to_string(),
+                content: assistant_reply,
+            });
         }
     });
 

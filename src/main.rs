@@ -3,6 +3,8 @@ mod data;
 mod history;
 mod openai;
 mod response;
+mod models;
+
 
 use clipboard::{ClipboardContext, ClipboardProvider};
 use commands::{handle_command, is_command};
