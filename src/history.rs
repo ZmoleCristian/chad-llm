@@ -1,6 +1,8 @@
+use serde_json;
 use std::fs::OpenOptions;
 use std::io::{self, Write};
 use std::path::Path;
+use crate::models::Message;
 
 pub struct History {
     file_path: String,
@@ -29,8 +31,16 @@ impl History {
         Ok(())
     }
 
-    pub fn load_history(&self) -> io::Result<Vec<String>> {
-        let content = std::fs::read_to_string(&self.file_path)?;
-        Ok(content.lines().map(String::from).collect())
+    pub async fn load_context(&self) -> io::Result<Vec<Message>> {
+        let content = tokio::fs::read_to_string(&self.file_path).await?;
+        let messages: Vec<Message> = serde_json::from_str(&content)?;
+        Ok(messages)
+    }
+
+    pub async fn save_context(&self, context: &[Message]) -> io::Result<()> {
+        let content = serde_json::to_string(context)?;
+        tokio::fs::write(&self.file_path, content).await?;
+        Ok(())
     }
 }
+

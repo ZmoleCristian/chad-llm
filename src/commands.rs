@@ -1,7 +1,8 @@
 use clipboard::{ClipboardContext, ClipboardProvider};
 use dialoguer::{theme::ColorfulTheme, Select};
-use std::fs::remove_file; // Import for file deletion
+use std::fs::{remove_file };
 use std::io::Write;
+use std::path::Path;
 use std::process;
 
 pub fn is_command(input: &str) -> bool {
@@ -11,11 +12,15 @@ pub fn is_command(input: &str) -> bool {
 pub fn handle_command(cmd: &str, code_blocks: &[String], history_file: &str) {
     match cmd {
         "/exit" => process::exit(0),
-        "/clear" => println!("\x1B[2J\x1B[1;1H"),
+        "/clear" => {
+            // Clear the terminal screen
+            print!("\x1B[2J\x1B[1;1H");
+            std::io::stdout().flush().unwrap();
+        }
         "/paste" => {
             let mut clipboard: ClipboardContext = ClipboardProvider::new().unwrap();
-            let _content = clipboard.get_contents().unwrap();
-            //println!("\n{}", content);
+            let content = clipboard.get_contents().unwrap();
+            println!("\n{}", content);
             std::io::stdout().flush().unwrap();
         }
         "/copy" => {
@@ -46,15 +51,19 @@ pub fn handle_command(cmd: &str, code_blocks: &[String], history_file: &str) {
 
             let mut clipboard: ClipboardContext = ClipboardProvider::new().unwrap();
             let all_code = code_blocks.join("\n\n");
-            clipboard.set_contents(all_code.clone()).unwrap();
+            clipboard.set_contents(all_code).unwrap();
             println!("All code blocks copied to clipboard");
         }
         "/clear_h" => {
-            // Clear history
-            if let Err(e) = remove_file(history_file) {
-                eprintln!("Failed to clear history: {}", e);
+            // Check if the history file exists before attempting to remove it
+            if Path::new(history_file).exists() {
+                if let Err(e) = remove_file(history_file) {
+                    eprintln!("Failed to clear history: {}", e);
+                } else {
+                    println!("History cleared.");
+                }
             } else {
-                println!("History cleared.");
+                println!("No history file found to clear.");
             }
         }
         _ => println!("Unknown command: {}", cmd),
